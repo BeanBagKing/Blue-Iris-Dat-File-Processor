@@ -8,8 +8,8 @@ results_folder = "/mnt/c/Users/Administrator/Documents/review/"
 
 to_confirm = ['person','bicycle','car','motorcycle','bus','truck','bird','cat','dog','bear','deer','rabbit','raccoon','fox','skunk','squirrel']
 to_cancel = ['BobRoss']
-custom_models = 'objects:0,combined'
-mark_as_vehicle = 'car,truck,bus,vehicle'
+custom_models = 'objects:0,combined' # Unusued currently, DS uses default model, plans to use it in the future though maybe?
+mark_as_vehicle = 'car,truck,bus,vehicle' # Same as above.
 min_confidence = 60
 
 def get_dat_files():
