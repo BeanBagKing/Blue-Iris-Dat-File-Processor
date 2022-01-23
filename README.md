@@ -5,8 +5,8 @@ This is still (and will likely remain) a very rough script. It currently works f
 This script will proccess DeepStack analysis files and extract images from those with failed (error 100) or no successful message. It then runs the extracted images back through DeepStack to find items that may have been missed.
 
 # Requirements
-ffmpeg, python3, DeepStack AI
-I'm using this in WLS (Windows Subsystem for Linux) on the same system as my Blue Iris/DeepStack install. If you are using this elsewhere, you may have to adjust script arguments, API calls, or have additional requirements.
+- ffmpeg, python3, DeepStack AI
+- I'm using this in WLS (Windows Subsystem for Linux) on the same system as my Blue Iris/DeepStack install. If you are using this elsewhere, you may have to adjust script arguments, API calls, or have additional requirements.
 
 Change the three *_folder locations at the top of the script to match your environment. Create the temp and review folders.
 
