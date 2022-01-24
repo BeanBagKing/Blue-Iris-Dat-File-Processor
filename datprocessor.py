@@ -1,15 +1,17 @@
 #!/usr/bin/python3
 
-import os, re, shutil, requests, math, time, glob, ntpath, subprocess, random
+import os, re, shutil, requests, os, math, time, glob, ntpath, subprocess, random
 
 alerts_folder = "/mnt/c/BlueIris/Alerts/"
+#alerts_folder = "/mnt/c/Users/Administrator/Desktop/all_error_dat_files/"
+#alerts_folder = "/mnt/c/Users/Administrator/Desktop/testing/"
 temp_folder = "/mnt/c/Users/Administrator/Documents/temp/"
 results_folder = "/mnt/c/Users/Administrator/Documents/review/"
 
 to_confirm = ['person','bicycle','car','motorcycle','bus','truck','bird','cat','dog','bear','deer','rabbit','raccoon','fox','skunk','squirrel']
 to_cancel = ['BobRoss']
-custom_models = 'objects:0,combined' # Unusued currently, DS uses default model, plans to use it in the future though maybe?
-mark_as_vehicle = 'car,truck,bus,vehicle' # Same as above.
+custom_models = 'objects:0,combined'
+mark_as_vehicle = 'car,truck,bus,vehicle'
 min_confidence = 60
 
 def get_dat_files():
@@ -27,24 +29,34 @@ def get_dat_files():
             lastchecked=0
             bookmark.close()
 
-    print("bleh")
-    #files = [f for f in os.listdir(alerts_folder) if os.path.isfile(f)]
-    files = glob.glob(os.path.expanduser(alerts_folder+"*.dat"))
-    #sorted_by_mtime_descending = sorted(files, key=lambda t: -os.stat(t).st_mtime)
-    sorted_by_mtime_ascending = sorted(files, key=lambda t: os.stat(t).st_mtime)
+    try:
+        print("start 1")
+        #files = [f for f in os.listdir(alerts_folder) if os.path.isfile(f)]
+        files = glob.glob(os.path.expanduser(alerts_folder+"*.dat"))
+        #sorted_by_mtime_descending = sorted(files, key=lambda t: -os.stat(t).st_mtime)
+        sorted_by_mtime_ascending = sorted(files, key=lambda t: os.stat(t).st_mtime)
+        print("start 2")
+    except:
+        print("file probably got deleted, retrying")
+        get_dat_files()
+
     for file in sorted_by_mtime_ascending:
         #print(file)
         #print(str(os.path.getmtime(file)) + " > " + str(lastchecked) + " " + str(os.path.getmtime(file) > float(lastchecked)))
-        if (os.path.getmtime(file) > float(lastchecked)):
-            if check_dat_file(file):
-                shutil.copy(file, temp_folder)
-                extract_images(ntpath.basename(file))
-                print("CHECKED")
-        if os.path.getmtime(file) > lastchecked:
-            lastchecked = os.path.getmtime(file)
-        with open(alerts_folder+'bookmark.txt', "w") as bookmark:
-            bookmark.write(str(lastchecked))
-            bookmark.close()
+        try:
+            if (os.path.getmtime(file) > float(lastchecked)):
+                if check_dat_file(file):
+                    shutil.copy(file, temp_folder)
+                    extract_images(ntpath.basename(file))
+                    print("CHECKED")
+            if os.path.getmtime(file) > lastchecked:
+                lastchecked = os.path.getmtime(file)
+            with open(alerts_folder+'bookmark.txt', "w") as bookmark:
+                bookmark.write(str(lastchecked))
+                bookmark.close()
+        except:
+            print("no such file or directory, retrying")
+            get_dat_files() 
 
 def check_dat_file(file):
     f = open(file, "rb")
@@ -89,8 +101,8 @@ def test_images():
                 get_dat_files()
         #{'success': True, 'predictions': [{'confidence': 0.8149414, 'label': 'car', 'y_min': 77, 'x_min': 2, 'y_max': 178, 'x_max': 111}], 'duration': 0}
         except:
-            print("An error has occured. Sleeping 30 and retrying")
-            time.sleep(30)
+            print("An error has occured. Sleeping 10 and retrying")
+            time.sleep(10)
             get_dat_files()
         items = len(response['predictions'])
         if items == 0:
@@ -108,10 +120,11 @@ def test_images():
 def select_image(file_detection):
     # Lets start enriching
     person_list=[]
+    items_list=[]
     max_avg=0
     max_per=0
+    print(file_detection)
     for item in file_detection:
-        print("plain    " + str(item))
 
         # Add an average
         filtered_vals = [v for _, v in item.items() if v != 0 and type(v) == int]
@@ -136,36 +149,34 @@ def select_image(file_detection):
                 if value >= min_confidence:
                     item["min_confidence"]=True
                     break
+        print(item)
 
     # Seems friggin stupid, but if we all the steps in one for loop
     # then the list size cahnges and we drop the wrong thing.
     for item in file_detection: # enrichment done
-        # Now lets drop it if it doesn't meet our criteria
-        if "confirm" not in item:
-            file_detection.remove(item)
-    for item in file_detection: # enrichment done
-        # Now lets drop it if it doesn't meet our criteria
         if "cancel" in item:
-            file_detection.remove(item)
-    for item in file_detection: # enrichment done
-        # Now lets drop it if it doesn't meet our criteria
-        if "min_confidence" not in item:
-            file_detection.remove(item)
-    for item in file_detection: # enrichment done
-        # People aren't required, so this comes after the cleanup. However, I am more interested in them, so let's build a list
-        if "person" in item:
-            person_list.append(item)
-            item["contains_person"]=True
-
-        
-    print("finished loop")
+            pass # Toss it all, end of discussion
+        else: 
+            if "confirm" not in item:
+                pass # There's nothing here we're interested in, don't process further
+            else:
+                if "min_confidence" not in item:
+                    pass # We're not confident enough to do anything, don't process further
+                else:
+                    if "person" in item:
+                        item["contains_person"]=True
+                        person_list.append(item) # Add it to our special list
+                    else:
+                        items_list.append(item) # It's not a person, but we're still interested, add it to a new list
 
     # Our list is now enriched and any items not meeting criteria have been dropped
 
     #shutil.copy(temp_folder+item['filename'], results_folder)
     #os.remove(temp_folder+item['filename'])
 
-    #print(file_detection)
+    print(person_list)
+
+    #print(items_list)
     if len(person_list) > 0: # There are people, we're going to select one of these
         print("there's people")
         for item in person_list:
@@ -180,14 +191,17 @@ def select_image(file_detection):
                 get_max_avg = [d for d in person_list if d['avg'] == max_avg]
                 if len(get_max_avg) > 1: #If we're STILL tied, screw it, we're grabbing something at random
                     rand = random.choice(get_max_per)
+                    print("Person Selected via Random")
                     print(rand)
                     shutil.copy(temp_folder+rand['filename'], results_folder)
                 else:
-                    print(get_max_avg)
+                    print("Person Selected via High Average")
+                    print(get_max_avg[0])
                     shutil.copy(temp_folder+get_max_avg[0]['filename'], results_folder)
-            else:
-                print(get_max_per[0]['filename'])
-                shutil.copy(temp_folder+get_max_per[0]['filename'], results_folder)
+        else:
+            print("Person Selected via only one")
+            print(person_list[0])
+            shutil.copy(temp_folder+person_list[0]['filename'], results_folder)
 
 
         #print(person_list)
@@ -195,19 +209,18 @@ def select_image(file_detection):
         #get_max_per = [d for d in get_max_avg if d['person'] == max_per]
         #print(str(dict(get_max_per[0])['filename'])) ## failing no list
         #shutil.copy(file, temp_folder)
-    elif len(file_detection) == 0:
+    elif len(items_list) == 0:
         print("absolutly nothing left")
 
     else: # There are no people, so we'll take what we can get
-        print("WHATEVERS LEFT")
-        print(file_detection)
-        for item in file_detection:
+        print("No People, slecting first image with highest average")
+        for item in items_list:
             if max_avg < item['avg']: # This variable we may not end up using, but would give us the highest average confidence
                 max_avg = item['avg']
-        #for f in file_detection:
+        #for f in items_list:
         #    print(f)
         print(max_avg)
-        get_max_avg = [d for d in file_detection if d['avg'] == max_avg]
+        get_max_avg = [d for d in items_list if d['avg'] == max_avg]
         print(get_max_avg)
         print(get_max_avg[0]['filename'])
         shutil.copy(temp_folder+get_max_avg[0]['filename'], results_folder)
